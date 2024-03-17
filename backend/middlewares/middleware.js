@@ -3,11 +3,11 @@ const { JWT_SECRET } = require('../config')
 const user = require('../routes/user')
 
 const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers.authorization
-    const authArr = authHeader.split(' ')
     try {
+        const authHeader = req.headers.authorization
+        const authArr = authHeader.split(' ')
         const verified = jwt.verify(authArr[1], JWT_SECRET)
-        req.username = verified.username
+        req.userId = verified.userId
         next()
     } catch (error) {
         return res.status(403).json({ msg: 'Invalid token' })

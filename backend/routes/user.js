@@ -2,7 +2,7 @@ const express = require('express')
 const userRouter = express.Router()
 const z = require('zod')
 const jwt = require('jsonwebtoken')
-const { User } = require('../db')
+const { User, Account } = require('../db')
 const { JWT_SECRET } = require('../config')
 const { authMiddleware } = require('../middlewares/middleware')
 
@@ -13,11 +13,11 @@ const signUpSchema = z.object({
     lastName: z.string().min(3).trim(),
     email: z.string().email().trim(),
     password: z.string().min(8).max(20).trim()
-}) 
+})
 
 const signInSchema = z.object({
     email: z.string().email(),
-    password: z.string().min(8).max(20) 
+    password: z.string().min(8).max(20)
 })
 
 const profileUpdateSchema = z.object({
@@ -30,48 +30,57 @@ const profileUpdateSchema = z.object({
 userRouter.post('/signup', async (req, res) => {
     const user = req.body
     // validate user data
-    const validatedData = signUpSchema.safeParse(user)    
-    if(!validatedData.success) return res.status(422).json({ msg: 'Incorrect data provided' })    
+    const validatedData = signUpSchema.safeParse(user)
+    if (!validatedData.success) return res.status(422).json({ msg: 'Incorrect data provided' })
     // check if user already exists
     const userExists = await User.findOne({ email: validatedData.data.email })
-    if(userExists) return res.status(409).json({ msg : 'User already exists'})
+    if (userExists) return res.status(409).json({ msg: 'User already exists' })
     // save the user into database
     const userCreated = await User.create(validatedData.data)
+    // Provide initial random balance to user
+    await Account.create({ userId: userCreated._id, balance: (Math.random() * 10000) })
     // jwt token
-    const jwtToken = jwt.sign({ username: validatedData.data.email}, JWT_SECRET)
-    res.status(200).json({ token: jwtToken})
+    const jwtToken = jwt.sign({ userId: validatedData.data.email }, JWT_SECRET)
+    res.status(200).json({ token: jwtToken })
 })
 
 userRouter.post('/signin', async (req, res) => {
     const user = req.body;
     // validate user data
     const validatedData = signInSchema.safeParse(user)
-    if(!validatedData.success) return res.status(409).json({ msg: 'Incorrect user details'})
+    if (!validatedData.success) return res.status(409).json({ msg: 'Incorrect user details' })
     // validate username and password
-    const userExists = await User.findOne({ email: validatedData.data.email, password: validatedData.data.password})
+    const userExists = await User.findOne({ email: validatedData.data.email, password: validatedData.data.password })
     console.log(userExists)
-    if(!userExists) return res.status(401).json({ msg: 'Incorrect username or password'})
-    const token = jwt.sign({ username: userExists.email }, JWT_SECRET)
-    res.status(200).json({ msg: `Welcome ${userExists.firstName }`, token: token })
+    if (!userExists) return res.status(401).json({ msg: 'Incorrect username or password' })
+    const token = jwt.sign({ userId: userExists._id }, JWT_SECRET)
+    res.status(200).json({ msg: `Welcome ${userExists.firstName}`, token: token })
 })
 
 userRouter.put('/', authMiddleware, async (req, res) => {
     const userUpdate = req.body
     const validatedData = profileUpdateSchema.safeParse(userUpdate)
-    if(!validatedData.success) return res.status(409).json({ msg: 'Incorrect data'})
+    if (!validatedData.success) return res.status(409).json({ msg: 'Incorrect data' })
     await User.updateOne({ email: req.username }, validatedData.data)
     res.status(200).json({ msg: 'Profile has been updated successfully' })
 })
 
 userRouter.get('/bulk', async (req, res) => {
-    const filter = req.query.filter
+    const filter = req.query.filter || ""
     const user = await User.find({
         $or: [
-            { firstName: filter },
-            { lastName: filter }
+            { firstName: { "$regex": filter } },
+            { lastName: { "$regex": filter } }
         ]
     })
-    res.status(200).json(user)
+    res.status(200).json({
+        users: user.map(usr => ({
+            username: usr.email,
+            firstName: usr.firstName,
+            lastName: usr.lastName,
+            id: usr._id
+        }))
+    })
 })
 
 module.exports = [
