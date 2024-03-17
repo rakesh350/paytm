@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
+const { MONGODB_URL } = require('./config')
 
-mongoose.connect('mongodb+srv://otter_dbuser:***********@otter-cluster.wxor4d5.mongodb.net/paytm')
+mongoose.connect(MONGODB_URL)
 
 const UserSchema = new mongoose.Schema({
     firstName: String,

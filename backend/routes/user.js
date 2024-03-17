@@ -4,6 +4,7 @@ const z = require('zod')
 const jwt = require('jsonwebtoken')
 const { User } = require('../db')
 const { JWT_SECRET } = require('../config')
+const { authMiddleware } = require('../middlewares/middleware')
 
 
 // Zod schema for input validation
@@ -17,6 +18,12 @@ const signUpSchema = z.object({
 const signInSchema = z.object({
     email: z.string().email(),
     password: z.string().min(8).max(20) 
+})
+
+const profileUpdateSchema = z.object({
+    firstName: z.string().min(3).trim().optional(),
+    lastName: z.string().min(3).trim().optional(),
+    password: z.string().min(8).max(20).trim().optional()
 })
 
 userRouter.post('/signup', async (req, res) => {
@@ -47,6 +54,13 @@ userRouter.post('/signin', async (req, res) => {
     res.status(200).json({ msg: `Welcome ${userExists.firstName }`, token: token })
 })
 
+userRouter.put('/', authMiddleware, async (req, res) => {
+    const userUpdate = req.body
+    const validatedData = profileUpdateSchema.safeParse(userUpdate)
+    if(!validatedData.success) return res.status(409).json({ msg: 'Incorrect data'})
+    await User.updateOne({ email: req.username }, validatedData.data)
+    res.status(200).json({ msg: 'Profile has been updated successfully' })
+})
 
 module.exports = [
     userRouter,
