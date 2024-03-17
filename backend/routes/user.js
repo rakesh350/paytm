@@ -26,6 +26,7 @@ const profileUpdateSchema = z.object({
     password: z.string().min(8).max(20).trim().optional()
 })
 
+/***  User routes start  ***/
 userRouter.post('/signup', async (req, res) => {
     const user = req.body
     // validate user data
@@ -62,6 +63,17 @@ userRouter.put('/', authMiddleware, async (req, res) => {
     res.status(200).json({ msg: 'Profile has been updated successfully' })
 })
 
+userRouter.get('/bulk', async (req, res) => {
+    const filter = req.query.filter
+    const user = await User.find({
+        $or: [
+            { firstName: filter },
+            { lastName: filter }
+        ]
+    })
+    res.status(200).json(user)
+})
+
 module.exports = [
-    userRouter,
+    userRouter
 ]
