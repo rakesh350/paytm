@@ -1,5 +1,5 @@
 export function Signup(){
-    return <>
+    return <div className="font-bold">
         This is sign up page
-    </>
+    </div>
 }
